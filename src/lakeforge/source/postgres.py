@@ -10,16 +10,23 @@ from psycopg import Connection, OperationalError
 from psycopg.rows import class_row
 
 from lakeforge.config import Settings
-from lakeforge.domain.models import TelemetryEvent, Vehicle
+from lakeforge.domain.models import Alarm, Site, TelemetryEvent, Vehicle, WorkOrder
 from lakeforge.synthetic.generator import GeneratedDataset
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
+SITE_COLUMNS = (
+    "site_id",
+    "site_name",
+    "latitude",
+    "longitude",
+    "timezone_name",
+)
 VEHICLE_COLUMNS = (
     "vehicle_id",
     "asset_type",
     "model_code",
-    "site_code",
+    "site_id",
     "status",
     "commissioned_on",
 )
@@ -27,6 +34,7 @@ TELEMETRY_COLUMNS = (
     "event_id",
     "vehicle_id",
     "event_time",
+    "received_at",
     "latitude",
     "longitude",
     "speed_kph",
@@ -34,48 +42,89 @@ TELEMETRY_COLUMNS = (
     "fuel_rate_lph",
     "engine_hours",
 )
+ALARM_COLUMNS = (
+    "alarm_id",
+    "vehicle_id",
+    "event_id",
+    "alarm_code",
+    "severity",
+    "raised_at",
+)
+WORK_ORDER_COLUMNS = (
+    "work_order_id",
+    "vehicle_id",
+    "site_id",
+    "alarm_id",
+    "opened_at",
+    "closed_at",
+    "work_type",
+    "cause_code",
+    "status",
+)
 
+_INSERT_SITES = """
+INSERT INTO source.sites (
+    site_id, site_name, latitude, longitude, timezone_name
+) VALUES (%s, %s, %s, %s, %s)
+"""
 _INSERT_VEHICLES = """
 INSERT INTO source.vehicles (
-    vehicle_id,
-    asset_type,
-    model_code,
-    site_code,
-    status,
-    commissioned_on
+    vehicle_id, asset_type, model_code, site_id, status, commissioned_on
 ) VALUES (%s, %s, %s, %s, %s, %s)
 """
 _INSERT_TELEMETRY = """
 INSERT INTO source.telemetry_events (
-    event_id,
-    vehicle_id,
-    event_time,
-    latitude,
-    longitude,
-    speed_kph,
-    engine_state,
-    fuel_rate_lph,
-    engine_hours
+    event_id, vehicle_id, event_time, received_at, latitude, longitude,
+    speed_kph, engine_state, fuel_rate_lph, engine_hours
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+_INSERT_ALARMS = """
+INSERT INTO source.alarms (
+    alarm_id, vehicle_id, event_id, alarm_code, severity, raised_at
+) VALUES (%s, %s, %s, %s, %s, %s)
+"""
+_INSERT_WORK_ORDERS = """
+INSERT INTO source.work_orders (
+    work_order_id, vehicle_id, site_id, alarm_id, opened_at, closed_at,
+    work_type, cause_code, status
 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
+_SELECT_SITES = """
+SELECT site_id, site_name, latitude, longitude, timezone_name
+FROM source.sites
+ORDER BY site_id
+"""
 _SELECT_VEHICLES = """
-SELECT vehicle_id, asset_type, model_code, site_code, status, commissioned_on
+SELECT vehicle_id, asset_type, model_code, site_id, status, commissioned_on
 FROM source.vehicles
 ORDER BY vehicle_id
 """
 _SELECT_TELEMETRY = """
 SELECT
-    event_id,
-    vehicle_id,
-    event_time,
-    latitude,
-    longitude,
-    speed_kph,
-    engine_state,
-    fuel_rate_lph,
-    engine_hours
+    event_id, vehicle_id, event_time, received_at, latitude, longitude,
+    speed_kph, engine_state, fuel_rate_lph, engine_hours
 FROM source.telemetry_events
-ORDER BY event_time, event_id
+ORDER BY event_time NULLS LAST, event_id
+"""
+_SELECT_ALARMS = """
+SELECT alarm_id, vehicle_id, event_id, alarm_code, severity, raised_at
+FROM source.alarms
+ORDER BY alarm_id
+"""
+_SELECT_WORK_ORDERS = """
+SELECT
+    work_order_id, vehicle_id, site_id, alarm_id, opened_at, closed_at,
+    work_type, cause_code, status
+FROM source.work_orders
+ORDER BY work_order_id
+"""
+_TRUNCATE = """
+TRUNCATE TABLE
+    source.work_orders,
+    source.alarms,
+    source.telemetry_events,
+    source.vehicles,
+    source.sites
 """
 
 
@@ -127,9 +176,19 @@ def apply_schema(connection: Connection[tuple[Any, ...]]) -> None:
     connection.commit()
 
 
+def recreate_schema(connection: Connection[tuple[Any, ...]]) -> None:
+    """Drop and recreate the source schema from schema.sql.
+
+    Generation replaces the simulator. It does not migrate an older shape.
+    """
+    connection.execute("DROP SCHEMA IF EXISTS source CASCADE")
+    connection.commit()
+    apply_schema(connection)
+
+
 def truncate_source(connection: Connection[tuple[Any, ...]]) -> None:
     """Remove simulated source rows without dropping the schema."""
-    connection.execute("TRUNCATE TABLE source.telemetry_events, source.vehicles")
+    connection.execute(_TRUNCATE)
     connection.commit()
 
 
@@ -139,7 +198,9 @@ def replace_dataset(
 ) -> None:
     """Replace the source tables with one generated snapshot."""
     with connection.cursor() as cursor:
-        cursor.execute("TRUNCATE TABLE source.telemetry_events, source.vehicles")
+        cursor.execute(_TRUNCATE)
+        if dataset.sites:
+            cursor.executemany(_INSERT_SITES, [_site_params(row) for row in dataset.sites])
         if dataset.vehicles:
             cursor.executemany(_INSERT_VEHICLES, [_vehicle_params(row) for row in dataset.vehicles])
         if dataset.telemetry_events:
@@ -147,7 +208,21 @@ def replace_dataset(
                 _INSERT_TELEMETRY,
                 [_telemetry_params(row) for row in dataset.telemetry_events],
             )
+        if dataset.alarms:
+            cursor.executemany(_INSERT_ALARMS, [_alarm_params(row) for row in dataset.alarms])
+        if dataset.work_orders:
+            cursor.executemany(
+                _INSERT_WORK_ORDERS,
+                [_work_order_params(row) for row in dataset.work_orders],
+            )
     connection.commit()
+
+
+def fetch_sites(connection: Connection[tuple[Any, ...]]) -> tuple[Site, ...]:
+    """Read sites in primary-key order."""
+    with connection.cursor(row_factory=class_row(Site)) as cursor:
+        cursor.execute(_SELECT_SITES)
+        return tuple(cursor.fetchall())
 
 
 def fetch_vehicles(connection: Connection[tuple[Any, ...]]) -> tuple[Vehicle, ...]:
@@ -158,9 +233,23 @@ def fetch_vehicles(connection: Connection[tuple[Any, ...]]) -> tuple[Vehicle, ..
 
 
 def fetch_telemetry(connection: Connection[tuple[Any, ...]]) -> tuple[TelemetryEvent, ...]:
-    """Read telemetry ordered by event time, then event id."""
+    """Read telemetry ordered by event time, with null times last, then event id."""
     with connection.cursor(row_factory=class_row(TelemetryEvent)) as cursor:
         cursor.execute(_SELECT_TELEMETRY)
+        return tuple(cursor.fetchall())
+
+
+def fetch_alarms(connection: Connection[tuple[Any, ...]]) -> tuple[Alarm, ...]:
+    """Read alarms in primary-key order."""
+    with connection.cursor(row_factory=class_row(Alarm)) as cursor:
+        cursor.execute(_SELECT_ALARMS)
+        return tuple(cursor.fetchall())
+
+
+def fetch_work_orders(connection: Connection[tuple[Any, ...]]) -> tuple[WorkOrder, ...]:
+    """Read work orders in primary-key order."""
+    with connection.cursor(row_factory=class_row(WorkOrder)) as cursor:
+        cursor.execute(_SELECT_WORK_ORDERS)
         return tuple(cursor.fetchall())
 
 
@@ -179,12 +268,16 @@ def split_sql_script(script: str) -> list[str]:
     return statements
 
 
+def _site_params(site: Site) -> tuple[str, str, float, float, str]:
+    return (site.site_id, site.site_name, site.latitude, site.longitude, site.timezone_name)
+
+
 def _vehicle_params(vehicle: Vehicle) -> tuple[str, str, str, str, str, date]:
     return (
         vehicle.vehicle_id,
         vehicle.asset_type,
         vehicle.model_code,
-        vehicle.site_code,
+        vehicle.site_id,
         vehicle.status,
         vehicle.commissioned_on,
     )
@@ -192,17 +285,56 @@ def _vehicle_params(vehicle: Vehicle) -> tuple[str, str, str, str, str, date]:
 
 def _telemetry_params(
     event: TelemetryEvent,
-) -> tuple[str, str, datetime, float, float, float, str, float, float]:
+) -> tuple[
+    str,
+    str | None,
+    datetime | None,
+    datetime,
+    float | None,
+    float | None,
+    float | None,
+    str | None,
+    float | None,
+    float | None,
+]:
     return (
         event.event_id,
         event.vehicle_id,
         event.event_time,
+        event.received_at,
         event.latitude,
         event.longitude,
         event.speed_kph,
         event.engine_state,
         event.fuel_rate_lph,
         event.engine_hours,
+    )
+
+
+def _alarm_params(alarm: Alarm) -> tuple[str, str, str | None, str, str, datetime]:
+    return (
+        alarm.alarm_id,
+        alarm.vehicle_id,
+        alarm.event_id,
+        alarm.alarm_code,
+        alarm.severity,
+        alarm.raised_at,
+    )
+
+
+def _work_order_params(
+    order: WorkOrder,
+) -> tuple[str, str, str, str | None, datetime, datetime | None, str, str, str]:
+    return (
+        order.work_order_id,
+        order.vehicle_id,
+        order.site_id,
+        order.alarm_id,
+        order.opened_at,
+        order.closed_at,
+        order.work_type,
+        order.cause_code,
+        order.status,
     )
 
 

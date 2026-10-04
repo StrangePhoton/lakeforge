@@ -2,7 +2,7 @@
 
 Open-source reference architecture for an industrial fleet lakehouse. The domain is synthetic: vehicles, telemetry, and, in later milestones, maintenance and operations. No employer data belongs in this repository.
 
-Milestone 0 is a local vertical slice. It is not a lakehouse yet.
+Milestone 1 is a local operational source and a JSONL landing zone. It is not a lakehouse yet.
 
 ```
 synthetic generator
@@ -23,9 +23,10 @@ JSONL landing zone + manifest
 | --- | --- |
 | Python 3.12 package, uv lockfile, Ruff, mypy, pytest | Implemented |
 | Environment-based configuration and JSON logging | Implemented |
-| Deterministic vehicle and telemetry generator | Implemented |
+| Deterministic sites, vehicles, telemetry, alarms, and work orders | Implemented |
 | PostgreSQL 17 source simulation and Docker Compose | Implemented |
 | Full-snapshot extract to a JSONL landing run | Implemented |
+| Fixed telemetry anomaly catalog for later quality checks | Implemented |
 | GitHub Actions lint, type check, and tests | Implemented |
 | Spark, PySpark, Delta Lake, medallion layers | Planned |
 | Data quality, quarantine, contracts, schema evolution | Planned |
@@ -35,7 +36,7 @@ JSONL landing zone + manifest
 | OpenTelemetry, Prometheus, Grafana | Planned |
 | Kubernetes, ForgeFlow | Planned |
 
-Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 0 detail: [docs/architecture/milestone-0.md](docs/architecture/milestone-0.md). Decisions: [docs/adr](docs/adr).
+Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 1 detail: [docs/architecture/milestone-1.md](docs/architecture/milestone-1.md). Decisions: [docs/adr](docs/adr).
 
 ## Prerequisites
 
@@ -57,13 +58,17 @@ docker compose up -d --wait
 uv run lakeforge pipeline
 ```
 
-The pipeline loads 4 vehicles and 96 telemetry events for seed 42, then writes:
+The default pipeline uses profile `dev` and seed 42. It loads 2 sites, 8 vehicles, 769 telemetry events (768 clean readings plus one duplicate), 17 alarms, and 1 work order, then writes:
 
 ```
 data/landing/run_id=<run_id>/
     manifest.json
+    sites.jsonl
     vehicles.jsonl
     telemetry_events.jsonl
+    alarms.jsonl
+    work_orders.jsonl
+    anomalies.json
 ```
 
 `data/` is gitignored. Logs are one JSON object per line on stdout and include `run_id` and `row_count`.
@@ -75,10 +80,11 @@ The database user and password in Compose are the local dummy `lakeforge`. They 
 ```powershell
 uv run lakeforge generate
 uv run lakeforge ingest
-uv run lakeforge pipeline --seed 42 --vehicles 4 --hours 6 --interval-minutes 15
+uv run lakeforge pipeline --profile tiny
+uv run lakeforge pipeline --profile dev --no-anomalies
 ```
 
-`generate` replaces the PostgreSQL snapshot. `ingest` extracts the current snapshot and writes `seed: null` in the manifest, because the source tables do not store the seed. `pipeline` does both and records the seed.
+Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog.
 
 ## Checks
 

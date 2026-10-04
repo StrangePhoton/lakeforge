@@ -17,7 +17,7 @@ Do not commit:
 - private keys or tokens
 - a filled-in `.env` file
 
-Use environment variables for local overrides. Secret stores such as Azure Key Vault are planned for a later milestone and are not part of Milestone 0.
+Use environment variables for local overrides. Secret stores such as Azure Key Vault are planned for a later milestone and are not part of the current local simulator.
 
 ## Data
 

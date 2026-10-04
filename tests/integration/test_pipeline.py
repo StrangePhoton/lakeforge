@@ -1,6 +1,7 @@
 import json
 
 import pytest
+from psycopg import Connection
 
 from lakeforge.cli import main
 from lakeforge.config import Settings
@@ -10,35 +11,47 @@ from lakeforge.logging import configure_logging
 pytestmark = pytest.mark.integration
 
 
-def test_pipeline_lands_the_default_snapshot(
+def test_pipeline_lands_the_tiny_snapshot(
     settings: Settings,
-    source_connection: object,
+    source_connection: Connection[tuple[object, ...]],
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     del source_connection
     configure_logging("INFO")
     result = run_pipeline(settings, run_id="pipeline-test")
 
+    assert result.site_count == 2
     assert result.vehicle_count == 4
-    assert result.telemetry_count == 96
+    assert result.telemetry_count == 97
+    assert result.alarm_count == 5
+    assert result.work_order_count == 1
     assert result.seed == 42
     manifest = json.loads((result.landing_dir / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["status"] == "succeeded"
+    assert manifest["pipeline"] == "source_snapshot"
     assert manifest["run_id"] == "pipeline-test"
     assert manifest["seed"] == 42
+    assert manifest["datasets"]["sites"]["rows"] == 2
     assert manifest["datasets"]["vehicles"]["rows"] == 4
-    assert manifest["datasets"]["telemetry_events"]["rows"] == 96
-    telemetry_lines = (result.landing_dir / "telemetry_events.jsonl").read_text(encoding="utf-8")
-    assert len(telemetry_lines.splitlines()) == 96
+    assert manifest["datasets"]["telemetry_events"]["rows"] == 97
+    assert manifest["datasets"]["alarms"]["rows"] == 5
+    assert manifest["datasets"]["work_orders"]["rows"] == 1
+    assert manifest["generation"]["profile"] == "tiny"
+    assert manifest["generation"]["anomaly_count"] == 12
+    catalog = json.loads((result.landing_dir / "anomalies.json").read_text(encoding="utf-8"))
+    assert len(catalog) == 12
+    telemetry_text = (result.landing_dir / "telemetry_events.jsonl").read_text(encoding="utf-8")
+    assert len(telemetry_text.splitlines()) == 97
+    assert "is_anomaly" not in telemetry_text
     logged = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.strip()]
     assert any(
-        entry.get("run_id") == "pipeline-test" and entry.get("row_count") == 96 for entry in logged
+        entry.get("run_id") == "pipeline-test" and entry.get("row_count") == 97 for entry in logged
     )
 
 
 def test_cli_pipeline_uses_the_same_slice(
     settings: Settings,
-    source_connection: object,
+    source_connection: Connection[tuple[object, ...]],
     capsys: pytest.CaptureFixture[str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -54,14 +67,11 @@ def test_cli_pipeline_uses_the_same_slice(
     code = main(
         [
             "pipeline",
+            "--profile",
+            "tiny",
+            "--no-anomalies",
             "--seed",
             "42",
-            "--vehicles",
-            "4",
-            "--hours",
-            "6",
-            "--interval-minutes",
-            "15",
             "--landing-dir",
             str(settings.landing_dir / "cli"),
         ]
@@ -76,5 +86,9 @@ def test_cli_pipeline_uses_the_same_slice(
     assert "run_id" in finished[0]
     landing = settings.landing_dir / "cli" / f"run_id={finished[0]['run_id']}"
     assert (landing / "manifest.json").is_file()
+    assert (landing / "sites.jsonl").is_file()
     assert (landing / "vehicles.jsonl").is_file()
     assert (landing / "telemetry_events.jsonl").is_file()
+    assert (landing / "alarms.jsonl").is_file()
+    assert (landing / "work_orders.jsonl").is_file()
+    assert json.loads((landing / "anomalies.json").read_text(encoding="utf-8")) == []

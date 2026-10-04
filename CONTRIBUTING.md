@@ -1,6 +1,6 @@
 # Contributing
 
-LakeForge is an open-source reference architecture. Milestone 0 is a local Python and PostgreSQL slice. Later milestones are documented as planned and are not implemented until their own work starts.
+LakeForge is an open-source reference architecture. The current local slice is a Python and PostgreSQL operational source. Later milestones are documented as planned and are not implemented until their own work starts.
 
 ## Setup
 

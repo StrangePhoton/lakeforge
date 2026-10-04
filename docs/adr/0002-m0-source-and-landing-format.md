@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted for the Milestone 0 slice.
+
+Superseded in part by [ADR 0005](0005-operational-source-and-telemetry-feed.md): the two-table model, the telemetry foreign key, and the requirement to recreate the Compose volume before the Python loader can apply a schema change. The single schema file, PostgreSQL 17.11 simulator, full-snapshot JSONL landing, and host port 54329 remain in force. The decision text below is unchanged.
 
 ## Context
 

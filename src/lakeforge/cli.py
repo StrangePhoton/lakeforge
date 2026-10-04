@@ -1,4 +1,4 @@
-"""Command line for the Milestone 0 source-to-landing slice."""
+"""Command line for the local source-to-landing slice."""
 
 import argparse
 import logging
@@ -8,7 +8,7 @@ from pathlib import Path
 from psycopg import OperationalError
 from pydantic import ValidationError
 
-from lakeforge.config import Settings, load_settings
+from lakeforge.config import ProfileName, Settings, load_settings
 from lakeforge.ingest.pipeline import run_generate, run_ingest, run_pipeline
 from lakeforge.logging import configure_logging
 
@@ -55,10 +55,16 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def _add_generation_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--profile", choices=("tiny", "dev", "large"), default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--vehicles", type=int, default=None)
     parser.add_argument("--hours", type=int, default=None)
     parser.add_argument("--interval-minutes", type=int, default=None)
+    parser.add_argument(
+        "--no-anomalies",
+        action="store_true",
+        help="Generate the operational story without injected telemetry defects",
+    )
 
 
 def _add_landing_argument(parser: argparse.ArgumentParser) -> None:
@@ -72,6 +78,8 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
     hours = _optional_int(args, "hours")
     interval_minutes = _optional_int(args, "interval_minutes")
     landing_dir = _optional_path(args, "landing_dir")
+    profile = _optional_profile(args)
+    anomalies = current.anomalies and not bool(getattr(args, "no_anomalies", False))
     return Settings(
         postgres_host=current.postgres_host,
         postgres_port=current.postgres_port,
@@ -81,6 +89,8 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
         landing_dir=current.landing_dir if landing_dir is None else landing_dir,
         log_level=current.log_level,
         seed=current.seed if seed is None else seed,
+        profile=current.profile if profile is None else profile,
+        anomalies=anomalies,
         vehicle_count=current.vehicle_count if vehicles is None else vehicles,
         hours=current.hours if hours is None else hours,
         interval_minutes=(
@@ -96,6 +106,19 @@ def _optional_int(args: argparse.Namespace, name: str) -> int | None:
     if isinstance(value, int):
         return value
     raise ValueError(f"{name} must be an integer")
+
+
+def _optional_profile(args: argparse.Namespace) -> ProfileName | None:
+    value: object = getattr(args, "profile", None)
+    if value is None:
+        return None
+    if value == "tiny":
+        return "tiny"
+    if value == "dev":
+        return "dev"
+    if value == "large":
+        return "large"
+    raise ValueError("profile must be tiny, dev, or large")
 
 
 def _optional_path(args: argparse.Namespace, name: str) -> Path | None:

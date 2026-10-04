@@ -1,6 +1,8 @@
 # Milestone 0: foundation and first local vertical slice
 
-Status: implemented.
+Status: implemented, historical.
+
+The current operational model is [Milestone 1](milestone-1.md) and [ADR 0005](../adr/0005-operational-source-and-telemetry-feed.md). This page records the Milestone 0 slice as it was built.
 
 ## What this milestone demonstrates
 

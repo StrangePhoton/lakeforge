@@ -12,6 +12,8 @@ _ENV_KEYS = (
     "LAKEFORGE_LANDING_DIR",
     "LAKEFORGE_LOG_LEVEL",
     "LAKEFORGE_SEED",
+    "LAKEFORGE_PROFILE",
+    "LAKEFORGE_ANOMALIES",
     "LAKEFORGE_VEHICLE_COUNT",
     "LAKEFORGE_HOURS",
     "LAKEFORGE_INTERVAL_MINUTES",
@@ -35,9 +37,11 @@ def test_defaults(isolated_env: None) -> None:
     assert settings.landing_dir.as_posix() == "data/landing"
     assert settings.log_level == "INFO"
     assert settings.seed == 42
-    assert settings.vehicle_count == 4
-    assert settings.hours == 6
-    assert settings.interval_minutes == 15
+    assert settings.profile == "dev"
+    assert settings.anomalies is True
+    assert settings.vehicle_count is None
+    assert settings.hours is None
+    assert settings.interval_minutes is None
 
 
 def test_environment_overrides(isolated_env: None, monkeypatch: pytest.MonkeyPatch) -> None:

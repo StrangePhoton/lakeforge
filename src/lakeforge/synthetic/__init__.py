@@ -1,1 +1,1 @@
-"""Deterministic synthetic data for the Milestone 0 source system."""
+"""Deterministic synthetic data for the operational source."""

@@ -4,39 +4,46 @@ LakeForge is a reference architecture for an industrial fleet data platform. All
 
 ## Implemented
 
-Milestone 0 runs on a workstation. PostgreSQL is the simulated operational source. A Python process on the host generates a deterministic snapshot, loads it, and extracts it to a local JSONL landing zone.
+Milestone 1 runs on a workstation. PostgreSQL is the simulated operational source. A Python process on the host generates a deterministic snapshot of sites, vehicles, telemetry, alarms, and work orders, loads it, and extracts it to a local JSONL landing zone.
 
 ```
 synthetic generator
         |
         v
-PostgreSQL 17  (schema source: vehicles, telemetry_events)
+PostgreSQL 17  (schema source)
+  sites, vehicles, telemetry_events, alarms, work_orders
         |
         v
 full-snapshot extract
         |
         v
 data/landing/run_id=<run_id>/
+    sites.jsonl
     vehicles.jsonl
     telemetry_events.jsonl
+    alarms.jsonl
+    work_orders.jsonl
+    anomalies.json
     manifest.json
 ```
+
+Telemetry is an externally produced machine event feed. It does not have a foreign key to vehicles. Sites, vehicles, alarms, and work orders stay relationally constrained. `anomalies.json` is the simulation answer key and is not an operational table.
 
 The Python package is `lakeforge`:
 
 | Module | Role |
 | --- | --- |
-| `lakeforge.domain` | `Vehicle` and `TelemetryEvent` |
-| `lakeforge.synthetic` | Seeded generation, no I/O |
+| `lakeforge.domain` | Site, vehicle, telemetry, alarm, and work order records |
+| `lakeforge.synthetic` | Profiles, seeded generation, and the fixed anomaly plan |
 | `lakeforge.source` | PostgreSQL schema, load, and snapshot read |
 | `lakeforge.ingest` | Landing writer and batch orchestration |
 | `lakeforge.config` | Environment-based settings |
 | `lakeforge.logging` | One JSON object per log line |
 | `lakeforge.cli` | `generate`, `ingest`, and `pipeline` |
 
-There is one schema definition: `src/lakeforge/source/schema.sql`. Compose mounts it, and the loader executes it.
+There is one schema definition: `src/lakeforge/source/schema.sql`. Compose mounts it, and generation executes it after dropping schema `source`.
 
-Details of the slice are in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
+Details are in [milestone-1.md](milestone-1.md). The Milestone 0 slice is recorded in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
 
 ## Planned
 
