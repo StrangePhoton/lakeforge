@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: lakeforge
+          POSTGRES_PASSWORD: lakeforge
+          POSTGRES_DB: lakeforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lakeforge -d lakeforge"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      LAKEFORGE_POSTGRES_HOST: localhost
+      LAKEFORGE_POSTGRES_PORT: "5432"
+      LAKEFORGE_POSTGRES_DB: lakeforge
+      LAKEFORGE_POSTGRES_USER: lakeforge
+      LAKEFORGE_POSTGRES_PASSWORD: lakeforge
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7.0.1
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install the locked environment
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest
