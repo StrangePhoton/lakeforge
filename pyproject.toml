@@ -1,6 +1,6 @@
 [project]
 name = "lakeforge"
-version = "0.2.0"
+version = "0.3.0"
 description = "Open-source reference architecture for an industrial fleet lakehouse."
 readme = "README.md"
 license = "MIT"
@@ -10,6 +10,8 @@ dependencies = [
     "psycopg[binary]>=3.2,<4",
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.7,<3",
+    "pyspark==4.2.0",
+    "delta-spark==4.4.1",
 ]
 
 [project.scripts]
@@ -34,6 +36,7 @@ testpaths = ["tests"]
 addopts = ["-ra"]
 markers = [
     "integration: tests that require a running PostgreSQL source database",
+    "spark: tests that start a local Spark session",
 ]
 
 [tool.ruff]
@@ -53,6 +56,10 @@ strict = true
 mypy_path = "src"
 packages = ["lakeforge"]
 warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["delta", "delta.*"]
+ignore_missing_imports = true
 
 [tool.uv]
 package = true

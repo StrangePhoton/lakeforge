@@ -14,3 +14,6 @@ build/
 *.egg-info/
 .idea/
 .vscode/
+metastore_db/
+derby.log
+spark-warehouse/

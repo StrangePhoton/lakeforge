@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     postgres_user: str = "lakeforge"
     postgres_password: SecretStr = Field(default_factory=_local_dummy_password)
     landing_dir: Path = Path("data/landing")
+    bronze_dir: Path = Path("data/bronze")
     log_level: LogLevel = "INFO"
     seed: int = Field(default=42, ge=0)
     profile: ProfileName = "dev"

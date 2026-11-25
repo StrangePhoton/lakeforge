@@ -2,6 +2,8 @@
 
 Status: implemented.
 
+Bronze Delta tables for this source are [Milestone 2](milestone-2.md). This page records the operational dataset and the JSONL landing run.
+
 This milestone widens the Milestone 0 source into a deterministic fleet dataset. It does not add Spark, a lakehouse table format, streaming, or a data-quality engine.
 
 ## Operational entities

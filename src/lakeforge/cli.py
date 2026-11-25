@@ -1,4 +1,4 @@
-"""Command line for the local source-to-landing slice."""
+"""Command line for the local source, landing, and Bronze slice."""
 
 import argparse
 import logging
@@ -10,11 +10,12 @@ from pydantic import ValidationError
 
 from lakeforge.config import ProfileName, Settings, load_settings
 from lakeforge.ingest.pipeline import run_generate, run_ingest, run_pipeline
+from lakeforge.lakehouse.bronze import run_bronze
 from lakeforge.logging import configure_logging
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run generate, ingest, or the full local pipeline."""
+    """Run generate, ingest, the landing pipeline, or a Bronze load."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
@@ -30,6 +31,11 @@ def main(argv: list[str] | None = None) -> int:
             run_ingest(settings)
         elif args.command == "pipeline":
             run_pipeline(settings)
+        elif args.command == "bronze":
+            landing_run = _optional_path(args, "landing_run")
+            if landing_run is None:
+                raise ValueError("landing run is required")
+            run_bronze(settings, landing_run)
         else:
             parser.error(f"unknown command {args.command}")
     except (OperationalError, ValueError, OSError) as exc:
@@ -51,6 +57,11 @@ def _build_parser() -> argparse.ArgumentParser:
     pipeline = commands.add_parser("pipeline", help="Generate the source snapshot and extract it")
     _add_generation_arguments(pipeline)
     _add_landing_argument(pipeline)
+
+    bronze = commands.add_parser("bronze", help="Load one landing run into local Delta tables")
+    bronze.add_argument("--landing-run", type=Path, required=True)
+    _add_landing_argument(bronze)
+    bronze.add_argument("--bronze-dir", type=Path, default=None)
     return parser
 
 
@@ -78,6 +89,7 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
     hours = _optional_int(args, "hours")
     interval_minutes = _optional_int(args, "interval_minutes")
     landing_dir = _optional_path(args, "landing_dir")
+    bronze_dir = _optional_path(args, "bronze_dir")
     profile = _optional_profile(args)
     anomalies = current.anomalies and not bool(getattr(args, "no_anomalies", False))
     return Settings(
@@ -87,6 +99,7 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
         postgres_user=current.postgres_user,
         postgres_password=current.postgres_password,
         landing_dir=current.landing_dir if landing_dir is None else landing_dir,
+        bronze_dir=current.bronze_dir if bronze_dir is None else bronze_dir,
         log_level=current.log_level,
         seed=current.seed if seed is None else seed,
         profile=current.profile if profile is None else profile,

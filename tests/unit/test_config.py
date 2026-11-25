@@ -10,6 +10,7 @@ _ENV_KEYS = (
     "LAKEFORGE_POSTGRES_USER",
     "LAKEFORGE_POSTGRES_PASSWORD",
     "LAKEFORGE_LANDING_DIR",
+    "LAKEFORGE_BRONZE_DIR",
     "LAKEFORGE_LOG_LEVEL",
     "LAKEFORGE_SEED",
     "LAKEFORGE_PROFILE",
@@ -35,6 +36,7 @@ def test_defaults(isolated_env: None) -> None:
     assert settings.postgres_user == "lakeforge"
     assert settings.postgres_password.get_secret_value() == "lakeforge"
     assert settings.landing_dir.as_posix() == "data/landing"
+    assert settings.bronze_dir.as_posix() == "data/bronze"
     assert settings.log_level == "INFO"
     assert settings.seed == 42
     assert settings.profile == "dev"

@@ -1,10 +1,10 @@
 # Contributing
 
-LakeForge is an open-source reference architecture. The current local slice is a Python and PostgreSQL operational source. Later milestones are documented as planned and are not implemented until their own work starts.
+LakeForge is an open-source reference architecture. The current local slice is a Python operational source, a JSONL landing zone, and Bronze Delta tables. Later milestones are documented as planned and are not implemented until their own work starts.
 
 ## Setup
 
-Install [uv](https://docs.astral.sh/uv/) and Docker Desktop. From the repository root:
+Install [uv](https://docs.astral.sh/uv/), Java 17 or 21, and Docker Desktop. From the repository root:
 
 ```powershell
 uv python install 3.12

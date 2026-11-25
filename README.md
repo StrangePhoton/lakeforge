@@ -2,7 +2,7 @@
 
 Open-source reference architecture for an industrial fleet lakehouse. The domain is synthetic: vehicles, telemetry, and, in later milestones, maintenance and operations. No employer data belongs in this repository.
 
-Milestone 1 is a local operational source and a JSONL landing zone. It is not a lakehouse yet.
+Milestone 2 is a local operational source, a JSONL landing zone, and Bronze Delta tables. Silver and Gold are not built yet.
 
 ```
 synthetic generator
@@ -15,6 +15,12 @@ full-snapshot batch extract
         |
         v
 JSONL landing zone + manifest
+        |
+        v
+local Spark session
+        |
+        v
+Bronze Delta tables
 ```
 
 ## Status
@@ -27,8 +33,9 @@ JSONL landing zone + manifest
 | PostgreSQL 17 source simulation and Docker Compose | Implemented |
 | Full-snapshot extract to a JSONL landing run | Implemented |
 | Fixed telemetry anomaly catalog for later quality checks | Implemented |
+| Local PySpark 4.2 and Bronze Delta tables | Implemented |
 | GitHub Actions lint, type check, and tests | Implemented |
-| Spark, PySpark, Delta Lake, medallion layers | Planned |
+| Silver and Gold medallion tables | Planned |
 | Data quality, quarantine, contracts, schema evolution | Planned |
 | Kafka, Event Hubs, streaming | Planned |
 | Domain data products | Planned |
@@ -36,11 +43,12 @@ JSONL landing zone + manifest
 | OpenTelemetry, Prometheus, Grafana | Planned |
 | Kubernetes, ForgeFlow | Planned |
 
-Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 1 detail: [docs/architecture/milestone-1.md](docs/architecture/milestone-1.md). Decisions: [docs/adr](docs/adr).
+Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 2 detail: [docs/architecture/milestone-2.md](docs/architecture/milestone-2.md). Decisions: [docs/adr](docs/adr).
 
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
+- Java 17 or 21 on `PATH` for the Bronze load
 - Docker Desktop, with the engine running
 - Host port 54329 available
 
@@ -82,9 +90,10 @@ uv run lakeforge generate
 uv run lakeforge ingest
 uv run lakeforge pipeline --profile tiny
 uv run lakeforge pipeline --profile dev --no-anomalies
+uv run lakeforge bronze --landing-run data/landing/run_id=<id>
 ```
 
-Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog.
+Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog. `bronze` reads that landing directory and overwrites local Delta tables under `data/bronze/run_id=<id>/`. It does not copy `anomalies.json`.
 
 ## Checks
 
@@ -102,7 +111,7 @@ docker compose up -d --wait
 uv run pytest
 ```
 
-GitHub Actions runs the same lint, format, type check, and test commands against PostgreSQL 17.11. CI sets `LAKEFORGE_POSTGRES_PORT=5432` for the Actions service container. Local Compose publishes port 54329.
+GitHub Actions runs the same lint, format, type check, and test commands against PostgreSQL 17.11 and Temurin 17. CI sets `LAKEFORGE_POSTGRES_PORT=5432` for the Actions service container. Local Compose publishes port 54329. Pytest also starts a local Spark session for the Bronze tests.
 
 ## Locked toolchain
 
@@ -119,6 +128,9 @@ Python packages below are pinned in `uv.lock`. uv 0.12.23 produced that lockfile
 | pytest | 9.1.1 |
 | Ruff | 0.16.10 |
 | mypy | 2.4.0 |
+| PySpark | 4.2.0 |
+| delta-spark | 4.4.1 |
+| Java for Bronze | 17 or 21 |
 
 ## License
 
