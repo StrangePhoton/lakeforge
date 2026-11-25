@@ -6,6 +6,14 @@ from typing import Literal
 ColumnKind = Literal["string", "double", "timestamp", "date"]
 LANDING_RUN_COLUMN = "_landing_run_id"
 DATASETS = ("sites", "vehicles", "telemetry_events", "alarms", "work_orders")
+GOLD_TABLES = ("vehicle_activity", "site_activity")
+BUSINESS_KEYS: dict[str, str] = {
+    "sites": "site_id",
+    "vehicles": "vehicle_id",
+    "telemetry_events": "event_id",
+    "alarms": "alarm_id",
+    "work_orders": "work_order_id",
+}
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,6 +2,8 @@
 
 Status: implemented.
 
+Silver and Gold for this Bronze snapshot are [Milestone 3](milestone-3.md). This page records the local Spark session and the Bronze Delta load.
+
 This milestone writes one JSONL landing run into local Delta tables. Silver, Gold, data quality, and streaming are not part of it.
 
 ## Flow

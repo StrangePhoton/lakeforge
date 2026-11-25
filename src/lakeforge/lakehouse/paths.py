@@ -8,6 +8,32 @@ from lakeforge.lakehouse.catalog import DATASETS
 _RUN_DIRECTORY = re.compile(r"^run_id=([A-Za-z0-9_-]+)$")
 
 
+def resolve_delta_run(
+    root_dir: Path,
+    run: Path,
+    tables: tuple[str, ...],
+    *,
+    layer: str,
+) -> Path:
+    """Return one Delta run directory when it is a direct child of ``root_dir``."""
+    if ".." in run.parts:
+        raise ValueError(f"{layer} run must stay inside the {layer} directory")
+    root = root_dir.resolve()
+    resolved = _candidate(root, run)
+    if not resolved.is_relative_to(root) or resolved.parent != root:
+        raise ValueError(f"{layer} run must stay inside the {layer} directory")
+    if _RUN_DIRECTORY.fullmatch(resolved.name) is None:
+        raise ValueError(f"{layer} run directory must be named run_id=<id>")
+    if not resolved.is_dir():
+        raise ValueError(f"{layer} run directory does not exist")
+    if not (resolved / "manifest.json").is_file():
+        raise ValueError(f"{layer} run is missing manifest.json")
+    missing = [name for name in tables if not (resolved / name / "_delta_log").is_dir()]
+    if missing:
+        raise ValueError(f"{layer} run is missing the {', '.join(missing)} Delta table")
+    return resolved
+
+
 def resolve_landing_run(landing_dir: Path, landing_run: Path) -> Path:
     """Return the landing run directory when it is a direct child of ``landing_dir``."""
     if ".." in landing_run.parts:

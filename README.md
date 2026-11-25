@@ -2,7 +2,7 @@
 
 Open-source reference architecture for an industrial fleet lakehouse. The domain is synthetic: vehicles, telemetry, and, in later milestones, maintenance and operations. No employer data belongs in this repository.
 
-Milestone 2 is a local operational source, a JSONL landing zone, and Bronze Delta tables. Silver and Gold are not built yet.
+Milestone 3 is a local operational source, a JSONL landing zone, and Bronze, Silver, and Gold Delta tables. Quality checks and domain data products are not built yet.
 
 ```
 synthetic generator
@@ -21,6 +21,12 @@ local Spark session
         |
         v
 Bronze Delta tables
+        |
+        v
+Silver conformed tables
+        |
+        v
+Gold activity tables
 ```
 
 ## Status
@@ -35,7 +41,7 @@ Bronze Delta tables
 | Fixed telemetry anomaly catalog for later quality checks | Implemented |
 | Local PySpark 4.2 and Bronze Delta tables | Implemented |
 | GitHub Actions lint, type check, and tests | Implemented |
-| Silver and Gold medallion tables | Planned |
+| Silver conformed tables and Gold activity tables | Implemented |
 | Data quality, quarantine, contracts, schema evolution | Planned |
 | Kafka, Event Hubs, streaming | Planned |
 | Domain data products | Planned |
@@ -43,12 +49,12 @@ Bronze Delta tables
 | OpenTelemetry, Prometheus, Grafana | Planned |
 | Kubernetes, ForgeFlow | Planned |
 
-Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 2 detail: [docs/architecture/milestone-2.md](docs/architecture/milestone-2.md). Decisions: [docs/adr](docs/adr).
+Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 3 detail: [docs/architecture/milestone-3.md](docs/architecture/milestone-3.md). Decisions: [docs/adr](docs/adr).
 
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/)
-- Java 17 or 21 on `PATH` for the Bronze load
+- Java 17 or 21 on `PATH` for local Spark
 - Docker Desktop, with the engine running
 - Host port 54329 available
 
@@ -91,9 +97,11 @@ uv run lakeforge ingest
 uv run lakeforge pipeline --profile tiny
 uv run lakeforge pipeline --profile dev --no-anomalies
 uv run lakeforge bronze --landing-run data/landing/run_id=<id>
+uv run lakeforge silver --bronze-run data/bronze/run_id=<id>
+uv run lakeforge gold --silver-run data/silver/run_id=<id>
 ```
 
-Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog. `bronze` reads that landing directory and overwrites local Delta tables under `data/bronze/run_id=<id>/`. It does not copy `anomalies.json`.
+Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog. `bronze` reads that landing directory and overwrites local Delta tables under `data/bronze/run_id=<id>/`. It does not copy `anomalies.json`. `silver` conforms that Bronze run, and `gold` writes `vehicle_activity` and `site_activity`. Invalid telemetry stays in Silver. Gold counts it and does not average it.
 
 ## Checks
 
@@ -111,7 +119,7 @@ docker compose up -d --wait
 uv run pytest
 ```
 
-GitHub Actions runs the same lint, format, type check, and test commands against PostgreSQL 17.11 and Temurin 17. CI sets `LAKEFORGE_POSTGRES_PORT=5432` for the Actions service container. Local Compose publishes port 54329. Pytest also starts a local Spark session for the Bronze tests.
+GitHub Actions runs the same lint, format, type check, and test commands against PostgreSQL 17.11 and Temurin 17. CI sets `LAKEFORGE_POSTGRES_PORT=5432` for the Actions service container. Local Compose publishes port 54329. Pytest also starts a local Spark session for the Bronze, Silver, and Gold tests.
 
 ## Locked toolchain
 
@@ -130,7 +138,7 @@ Python packages below are pinned in `uv.lock`. uv 0.12.23 produced that lockfile
 | mypy | 2.4.0 |
 | PySpark | 4.2.0 |
 | delta-spark | 4.4.1 |
-| Java for Bronze | 17 or 21 |
+| Java for Spark | 17 or 21 |
 
 ## License
 

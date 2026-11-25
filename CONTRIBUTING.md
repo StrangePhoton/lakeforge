@@ -1,6 +1,6 @@
 # Contributing
 
-LakeForge is an open-source reference architecture. The current local slice is a Python operational source, a JSONL landing zone, and Bronze Delta tables. Later milestones are documented as planned and are not implemented until their own work starts.
+LakeForge is an open-source reference architecture. The current local slice is a Python operational source, a JSONL landing zone, and Bronze, Silver, and Gold Delta tables. Later milestones are documented as planned and are not implemented until their own work starts.
 
 ## Setup
 

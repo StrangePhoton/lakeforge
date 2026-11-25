@@ -30,6 +30,17 @@ def bronze_schema(dataset: str) -> StructType:
     )
 
 
+def silver_telemetry_schema() -> StructType:
+    """Return the Silver telemetry schema, including the conformed site id."""
+    fields: list[StructField] = []
+    for spec in TABLES["telemetry_events"]:
+        fields.append(_field(spec))
+        if spec.name == "vehicle_id":
+            fields.append(StructField("site_id", StringType(), True))
+    fields.append(StructField(LANDING_RUN_COLUMN, StringType(), False))
+    return StructType(fields)
+
+
 def landing_string_schema(dataset: str) -> StructType:
     """Return an all-string schema used to read one JSONL file before parsing."""
     return StructType([StructField(spec.name, StringType(), True) for spec in TABLES[dataset]])

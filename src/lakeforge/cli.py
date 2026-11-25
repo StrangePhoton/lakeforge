@@ -1,4 +1,4 @@
-"""Command line for the local source, landing, and Bronze slice."""
+"""Command line for the local source, landing, and medallion slice."""
 
 import argparse
 import logging
@@ -11,11 +11,13 @@ from pydantic import ValidationError
 from lakeforge.config import ProfileName, Settings, load_settings
 from lakeforge.ingest.pipeline import run_generate, run_ingest, run_pipeline
 from lakeforge.lakehouse.bronze import run_bronze
+from lakeforge.lakehouse.gold import run_gold
+from lakeforge.lakehouse.silver import run_silver
 from lakeforge.logging import configure_logging
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run generate, ingest, the landing pipeline, or a Bronze load."""
+    """Run generate, ingest, the landing pipeline, or a medallion build."""
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
@@ -36,6 +38,16 @@ def main(argv: list[str] | None = None) -> int:
             if landing_run is None:
                 raise ValueError("landing run is required")
             run_bronze(settings, landing_run)
+        elif args.command == "silver":
+            bronze_run = _optional_path(args, "bronze_run")
+            if bronze_run is None:
+                raise ValueError("bronze run is required")
+            run_silver(settings, bronze_run)
+        elif args.command == "gold":
+            silver_run = _optional_path(args, "silver_run")
+            if silver_run is None:
+                raise ValueError("silver run is required")
+            run_gold(settings, silver_run)
         else:
             parser.error(f"unknown command {args.command}")
     except (OperationalError, ValueError, OSError) as exc:
@@ -62,6 +74,16 @@ def _build_parser() -> argparse.ArgumentParser:
     bronze.add_argument("--landing-run", type=Path, required=True)
     _add_landing_argument(bronze)
     bronze.add_argument("--bronze-dir", type=Path, default=None)
+
+    silver = commands.add_parser("silver", help="Conform one Bronze run into Silver Delta tables")
+    silver.add_argument("--bronze-run", type=Path, required=True)
+    silver.add_argument("--bronze-dir", type=Path, default=None)
+    silver.add_argument("--silver-dir", type=Path, default=None)
+
+    gold = commands.add_parser("gold", help="Aggregate one Silver run into Gold activity tables")
+    gold.add_argument("--silver-run", type=Path, required=True)
+    gold.add_argument("--silver-dir", type=Path, default=None)
+    gold.add_argument("--gold-dir", type=Path, default=None)
     return parser
 
 
@@ -90,6 +112,8 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
     interval_minutes = _optional_int(args, "interval_minutes")
     landing_dir = _optional_path(args, "landing_dir")
     bronze_dir = _optional_path(args, "bronze_dir")
+    silver_dir = _optional_path(args, "silver_dir")
+    gold_dir = _optional_path(args, "gold_dir")
     profile = _optional_profile(args)
     anomalies = current.anomalies and not bool(getattr(args, "no_anomalies", False))
     return Settings(
@@ -100,6 +124,8 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
         postgres_password=current.postgres_password,
         landing_dir=current.landing_dir if landing_dir is None else landing_dir,
         bronze_dir=current.bronze_dir if bronze_dir is None else bronze_dir,
+        silver_dir=current.silver_dir if silver_dir is None else silver_dir,
+        gold_dir=current.gold_dir if gold_dir is None else gold_dir,
         log_level=current.log_level,
         seed=current.seed if seed is None else seed,
         profile=current.profile if profile is None else profile,

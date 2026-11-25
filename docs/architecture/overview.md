@@ -4,7 +4,7 @@ LakeForge is a reference architecture for an industrial fleet data platform. All
 
 ## Implemented
 
-Milestone 2 runs on a workstation. PostgreSQL is the simulated operational source. A Python process generates a deterministic snapshot, extracts it to a JSONL landing run, and can load that run into local Bronze Delta tables with PySpark.
+Milestone 3 runs on a workstation. PostgreSQL is the simulated operational source. A Python process generates a deterministic snapshot, extracts it to a JSONL landing run, loads that run into local Bronze Delta tables, conforms it to Silver, and aggregates Gold activity tables.
 
 ```
 synthetic generator
@@ -33,6 +33,20 @@ lakeforge bronze  (local Spark)
 data/bronze/run_id=<run_id>/
     sites, vehicles, telemetry_events, alarms, work_orders
     manifest.json
+        |
+        v
+lakeforge silver
+        |
+        v
+data/silver/run_id=<run_id>/
+        |
+        v
+lakeforge gold
+        |
+        v
+data/gold/run_id=<run_id>/
+    vehicle_activity, site_activity
+    manifest.json
 ```
 
 Telemetry is an externally produced machine event feed. It does not have a foreign key to vehicles. Sites, vehicles, alarms, and work orders stay relationally constrained. `anomalies.json` is the simulation answer key and is not an operational table.
@@ -47,12 +61,12 @@ The Python package is `lakeforge`:
 | `lakeforge.ingest` | Landing writer and batch orchestration |
 | `lakeforge.config` | Environment-based settings |
 | `lakeforge.logging` | One JSON object per log line |
-| `lakeforge.lakehouse` | Local Spark session and Bronze Delta load |
-| `lakeforge.cli` | `generate`, `ingest`, `pipeline`, and `bronze` |
+| `lakeforge.lakehouse` | Local Spark session, Bronze, Silver, and Gold |
+| `lakeforge.cli` | `generate`, `ingest`, `pipeline`, `bronze`, `silver`, and `gold` |
 
 There is one schema definition: `src/lakeforge/source/schema.sql`. Compose mounts it, and generation executes it after dropping schema `source`.
 
-Details are in [milestone-2.md](milestone-2.md). The operational source is recorded in [milestone-1.md](milestone-1.md), and the first slice in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
+Details are in [milestone-3.md](milestone-3.md). Bronze is recorded in [milestone-2.md](milestone-2.md), the operational source in [milestone-1.md](milestone-1.md), and the first slice in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
 
 ## Planned
 
@@ -76,7 +90,6 @@ Analytics / APIs / AI consumers
 
 Planned technologies, each only when its milestone starts:
 
-- Silver and Gold tables on the Bronze Delta snapshot. PySpark and Delta Lake are already used for Bronze.
 - Kafka locally, Azure Event Hubs in Azure
 - ADLS Gen2, Azure Databricks, Azure Key Vault, Microsoft Entra
 - Terraform and GitHub Actions beyond the current lint-and-test workflow
@@ -87,4 +100,4 @@ Planned technologies, each only when its milestone starts:
 - A Kubernetes decision, which may be a decision not to use Kubernetes
 - A loose ForgeFlow integration through a governed query interface
 
-The JSONL landing zone remains the operational extract. Bronze Delta is the first lakehouse table. Silver and Gold are still planned.
+The JSONL landing zone remains the operational extract. Bronze, Silver, and Gold are local Delta snapshots of one run. Quality, contracts, streaming, and domain data products are still planned.
