@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     bronze_dir: Path = Path("data/bronze")
     silver_dir: Path = Path("data/silver")
     gold_dir: Path = Path("data/gold")
+    quality_dir: Path = Path("data/quality")
     log_level: LogLevel = "INFO"
     seed: int = Field(default=42, ge=0)
     profile: ProfileName = "dev"

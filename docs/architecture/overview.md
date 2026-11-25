@@ -4,7 +4,7 @@ LakeForge is a reference architecture for an industrial fleet data platform. All
 
 ## Implemented
 
-Milestone 3 runs on a workstation. PostgreSQL is the simulated operational source. A Python process generates a deterministic snapshot, extracts it to a JSONL landing run, loads that run into local Bronze Delta tables, conforms it to Silver, and aggregates Gold activity tables.
+Milestone 4 runs on a workstation. PostgreSQL is the simulated operational source. A Python process generates a deterministic snapshot, extracts it to a JSONL landing run, loads that run into local Bronze Delta tables, conforms it to Silver, aggregates Gold activity tables, and writes telemetry quality violations beside the rows that pass.
 
 ```
 synthetic generator
@@ -40,13 +40,11 @@ lakeforge silver
         v
 data/silver/run_id=<run_id>/
         |
-        v
-lakeforge gold
+        +-- lakeforge gold --> data/gold/run_id=<run_id>/
+        |                      vehicle_activity, site_activity
         |
-        v
-data/gold/run_id=<run_id>/
-    vehicle_activity, site_activity
-    manifest.json
+        +-- lakeforge quality --> data/quality/run_id=<run_id>/
+                                 telemetry_violation, telemetry_passed
 ```
 
 Telemetry is an externally produced machine event feed. It does not have a foreign key to vehicles. Sites, vehicles, alarms, and work orders stay relationally constrained. `anomalies.json` is the simulation answer key and is not an operational table.
@@ -61,12 +59,12 @@ The Python package is `lakeforge`:
 | `lakeforge.ingest` | Landing writer and batch orchestration |
 | `lakeforge.config` | Environment-based settings |
 | `lakeforge.logging` | One JSON object per log line |
-| `lakeforge.lakehouse` | Local Spark session, Bronze, Silver, and Gold |
-| `lakeforge.cli` | `generate`, `ingest`, `pipeline`, `bronze`, `silver`, and `gold` |
+| `lakeforge.lakehouse` | Local Spark session, Bronze, Silver, Gold, and quality |
+| `lakeforge.cli` | `generate`, `ingest`, `pipeline`, `bronze`, `silver`, `gold`, and `quality` |
 
 There is one schema definition: `src/lakeforge/source/schema.sql`. Compose mounts it, and generation executes it after dropping schema `source`.
 
-Details are in [milestone-3.md](milestone-3.md). Bronze is recorded in [milestone-2.md](milestone-2.md), the operational source in [milestone-1.md](milestone-1.md), and the first slice in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
+Details are in [milestone-4.md](milestone-4.md). Silver and Gold are recorded in [milestone-3.md](milestone-3.md), Bronze in [milestone-2.md](milestone-2.md), the operational source in [milestone-1.md](milestone-1.md), and the first slice in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
 
 ## Planned
 
@@ -94,10 +92,10 @@ Planned technologies, each only when its milestone starts:
 - ADLS Gen2, Azure Databricks, Azure Key Vault, Microsoft Entra
 - Terraform and GitHub Actions beyond the current lint-and-test workflow
 - Microsoft Fabric and OneLake as a second implementation target
-- Data quality, quarantine, contracts, and schema evolution
+- Contracts and schema evolution
 - Domain data products for fleet, maintenance, and operations
 - OpenTelemetry, Prometheus, and Grafana
 - A Kubernetes decision, which may be a decision not to use Kubernetes
 - A loose ForgeFlow integration through a governed query interface
 
-The JSONL landing zone remains the operational extract. Bronze, Silver, and Gold are local Delta snapshots of one run. Quality, contracts, streaming, and domain data products are still planned.
+The JSONL landing zone remains the operational extract. Bronze, Silver, and Gold are local Delta snapshots of one run. Quality violations are written beside the Silver rows that pass. Contracts, streaming, and domain data products are still planned.

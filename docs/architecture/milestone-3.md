@@ -2,6 +2,8 @@
 
 Status: implemented.
 
+Quality checks for this Silver snapshot are [Milestone 4](milestone-4.md). This page records the Silver and Gold tables.
+
 This milestone conforms one Bronze snapshot and aggregates it. Data quality, quarantine, contracts, and streaming are not part of it.
 
 ## Flow

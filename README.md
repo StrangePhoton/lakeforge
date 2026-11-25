@@ -2,7 +2,7 @@
 
 Open-source reference architecture for an industrial fleet lakehouse. The domain is synthetic: vehicles, telemetry, and, in later milestones, maintenance and operations. No employer data belongs in this repository.
 
-Milestone 3 is a local operational source, a JSONL landing zone, and Bronze, Silver, and Gold Delta tables. Quality checks and domain data products are not built yet.
+Milestone 4 is a local operational source, a JSONL landing zone, Bronze, Silver, and Gold Delta tables, and telemetry quality checks. Contracts and domain data products are not built yet.
 
 ```
 synthetic generator
@@ -27,6 +27,8 @@ Silver conformed tables
         |
         v
 Gold activity tables
+
+quality checks read Silver and write violations beside the rows that pass
 ```
 
 ## Status
@@ -42,14 +44,15 @@ Gold activity tables
 | Local PySpark 4.2 and Bronze Delta tables | Implemented |
 | GitHub Actions lint, type check, and tests | Implemented |
 | Silver conformed tables and Gold activity tables | Implemented |
-| Data quality, quarantine, contracts, schema evolution | Planned |
+| Telemetry quality checks and quarantine | Implemented |
+| Contracts and schema evolution | Planned |
 | Kafka, Event Hubs, streaming | Planned |
 | Domain data products | Planned |
 | Terraform, Azure, Databricks, Fabric | Planned |
 | OpenTelemetry, Prometheus, Grafana | Planned |
 | Kubernetes, ForgeFlow | Planned |
 
-Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 3 detail: [docs/architecture/milestone-3.md](docs/architecture/milestone-3.md). Decisions: [docs/adr](docs/adr).
+Architecture: [docs/architecture/overview.md](docs/architecture/overview.md). Milestone 4 detail: [docs/architecture/milestone-4.md](docs/architecture/milestone-4.md). Decisions: [docs/adr](docs/adr).
 
 ## Prerequisites
 
@@ -99,9 +102,10 @@ uv run lakeforge pipeline --profile dev --no-anomalies
 uv run lakeforge bronze --landing-run data/landing/run_id=<id>
 uv run lakeforge silver --bronze-run data/bronze/run_id=<id>
 uv run lakeforge gold --silver-run data/silver/run_id=<id>
+uv run lakeforge quality --silver-run data/silver/run_id=<id>
 ```
 
-Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog. `bronze` reads that landing directory and overwrites local Delta tables under `data/bronze/run_id=<id>/`. It does not copy `anomalies.json`. `silver` conforms that Bronze run, and `gold` writes `vehicle_activity` and `site_activity`. Invalid telemetry stays in Silver. Gold counts it and does not average it.
+Profiles are `tiny`, `dev`, and `large`. `large` is a bigger development dataset (20 vehicles, 7 days, 13440 clean telemetry rows), not a benchmark. `generate` drops and recreates the source schema, then replaces the snapshot. `ingest` extracts the current snapshot, writes `seed: null`, and does not write `anomalies.json`. `pipeline` does both, records the seed, and writes the anomaly catalog. `bronze` reads that landing directory and overwrites local Delta tables under `data/bronze/run_id=<id>/`. It does not copy `anomalies.json`. `silver` conforms that Bronze run, and `gold` writes `vehicle_activity` and `site_activity`. Invalid telemetry stays in Silver. Gold counts it and does not average it. `quality` writes the failing telemetry rows and the rows that pass. It does not read `anomalies.json` and does not rewrite Silver or Gold.
 
 ## Checks
 
@@ -119,7 +123,7 @@ docker compose up -d --wait
 uv run pytest
 ```
 
-GitHub Actions runs the same lint, format, type check, and test commands against PostgreSQL 17.11 and Temurin 17. CI sets `LAKEFORGE_POSTGRES_PORT=5432` for the Actions service container. Local Compose publishes port 54329. Pytest also starts a local Spark session for the Bronze, Silver, and Gold tests.
+GitHub Actions runs the same lint, format, type check, and test commands against PostgreSQL 17.11 and Temurin 17. CI sets `LAKEFORGE_POSTGRES_PORT=5432` for the Actions service container. Local Compose publishes port 54329. Pytest also starts a local Spark session for the Bronze, Silver, Gold, and quality tests.
 
 ## Locked toolchain
 

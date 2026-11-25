@@ -12,6 +12,7 @@ from lakeforge.config import ProfileName, Settings, load_settings
 from lakeforge.ingest.pipeline import run_generate, run_ingest, run_pipeline
 from lakeforge.lakehouse.bronze import run_bronze
 from lakeforge.lakehouse.gold import run_gold
+from lakeforge.lakehouse.quality import run_quality
 from lakeforge.lakehouse.silver import run_silver
 from lakeforge.logging import configure_logging
 
@@ -48,6 +49,11 @@ def main(argv: list[str] | None = None) -> int:
             if silver_run is None:
                 raise ValueError("silver run is required")
             run_gold(settings, silver_run)
+        elif args.command == "quality":
+            silver_run = _optional_path(args, "silver_run")
+            if silver_run is None:
+                raise ValueError("silver run is required")
+            run_quality(settings, silver_run)
         else:
             parser.error(f"unknown command {args.command}")
     except (OperationalError, ValueError, OSError) as exc:
@@ -84,6 +90,11 @@ def _build_parser() -> argparse.ArgumentParser:
     gold.add_argument("--silver-run", type=Path, required=True)
     gold.add_argument("--silver-dir", type=Path, default=None)
     gold.add_argument("--gold-dir", type=Path, default=None)
+
+    quality = commands.add_parser("quality", help="Apply quality rules to one Silver run")
+    quality.add_argument("--silver-run", type=Path, required=True)
+    quality.add_argument("--silver-dir", type=Path, default=None)
+    quality.add_argument("--quality-dir", type=Path, default=None)
     return parser
 
 
@@ -114,6 +125,7 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
     bronze_dir = _optional_path(args, "bronze_dir")
     silver_dir = _optional_path(args, "silver_dir")
     gold_dir = _optional_path(args, "gold_dir")
+    quality_dir = _optional_path(args, "quality_dir")
     profile = _optional_profile(args)
     anomalies = current.anomalies and not bool(getattr(args, "no_anomalies", False))
     return Settings(
@@ -126,6 +138,7 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
         bronze_dir=current.bronze_dir if bronze_dir is None else bronze_dir,
         silver_dir=current.silver_dir if silver_dir is None else silver_dir,
         gold_dir=current.gold_dir if gold_dir is None else gold_dir,
+        quality_dir=current.quality_dir if quality_dir is None else quality_dir,
         log_level=current.log_level,
         seed=current.seed if seed is None else seed,
         profile=current.profile if profile is None else profile,

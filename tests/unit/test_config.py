@@ -13,6 +13,7 @@ _ENV_KEYS = (
     "LAKEFORGE_BRONZE_DIR",
     "LAKEFORGE_SILVER_DIR",
     "LAKEFORGE_GOLD_DIR",
+    "LAKEFORGE_QUALITY_DIR",
     "LAKEFORGE_LOG_LEVEL",
     "LAKEFORGE_SEED",
     "LAKEFORGE_PROFILE",
@@ -41,6 +42,7 @@ def test_defaults(isolated_env: None) -> None:
     assert settings.bronze_dir.as_posix() == "data/bronze"
     assert settings.silver_dir.as_posix() == "data/silver"
     assert settings.gold_dir.as_posix() == "data/gold"
+    assert settings.quality_dir.as_posix() == "data/quality"
     assert settings.log_level == "INFO"
     assert settings.seed == 42
     assert settings.profile == "dev"
