@@ -232,6 +232,7 @@ def _telemetry_row(run_id: str, speed_kph: float) -> tuple[object, ...]:
         None,
         None,
         None,
+        None,
         run_id,
     )
 

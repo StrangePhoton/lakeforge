@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     silver_dir: Path = Path("data/silver")
     gold_dir: Path = Path("data/gold")
     quality_dir: Path = Path("data/quality")
+    contracts_dir: Path = Path("data/contracts")
+    stream_dir: Path = Path("data/stream")
+    products_dir: Path = Path("data/products")
+    kafka_bootstrap: str = "localhost:19092"
     log_level: LogLevel = "INFO"
     seed: int = Field(default=42, ge=0)
     profile: ProfileName = "dev"

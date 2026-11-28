@@ -14,7 +14,7 @@ from pyspark.sql.column import Column
 from lakeforge.config import Settings
 from lakeforge.ingest.landing import read_manifest
 from lakeforge.lakehouse.catalog import DATASETS, LANDING_RUN_COLUMN, TABLES, ColumnSpec
-from lakeforge.lakehouse.paths import resolve_landing_run
+from lakeforge.lakehouse.contract import run_contract
 from lakeforge.lakehouse.schema import landing_string_schema
 from lakeforge.lakehouse.session import build_session, default_warehouse_dir
 
@@ -40,7 +40,11 @@ def run_bronze(
     spark: SparkSession | None = None,
 ) -> BronzeResult:
     """Overwrite the Bronze tables for one landing run."""
-    landing_dir = resolve_landing_run(settings.landing_dir, landing_run)
+    report = run_contract(settings, landing_run)
+    failed = [name for name, count in report.violation_counts if count > 0]
+    if failed:
+        raise ValueError(f"{', '.join(failed)} has schema violations")
+    landing_dir = report.landing_dir
     manifest = read_manifest(landing_dir / "manifest.json")
     run_id = _manifest_run_id(manifest, landing_dir)
     expected = _manifest_counts(manifest)

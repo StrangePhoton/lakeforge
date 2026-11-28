@@ -1,6 +1,6 @@
 [project]
 name = "lakeforge"
-version = "0.5.0"
+version = "0.8.0"
 description = "Open-source reference architecture for an industrial fleet lakehouse."
 readme = "README.md"
 license = "MIT"
@@ -37,6 +37,7 @@ addopts = ["-ra"]
 markers = [
     "integration: tests that require a running PostgreSQL source database",
     "spark: tests that start a local Spark session",
+    "kafka: tests that require a running local Kafka broker",
 ]
 
 [tool.ruff]

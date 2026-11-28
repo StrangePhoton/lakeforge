@@ -1,0 +1,25 @@
+{
+  "name": "maintenance.alarm_events",
+  "domain": "maintenance",
+  "version": 1,
+  "description": "Alarm rows published when the reference checks report no failures.",
+  "owner": "maintenance",
+  "freshness": "snapshot",
+  "classification": "synthetic",
+  "compatibility": "backward",
+  "quality_requirements": [
+    "alarm_vehicle_known",
+    "work_order_vehicle_known",
+    "work_order_site_known",
+    "work_order_alarm_known"
+  ],
+  "columns": [
+    "alarm_id",
+    "vehicle_id",
+    "event_id",
+    "alarm_code",
+    "severity",
+    "raised_at",
+    "_landing_run_id"
+  ]
+}

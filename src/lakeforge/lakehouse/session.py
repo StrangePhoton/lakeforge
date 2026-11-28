@@ -57,8 +57,15 @@ def build_session(*, warehouse_dir: Path) -> SparkSession:
             builder.config("spark.driver.extraClassPath", classes.as_posix())
             .config("spark.executor.extraClassPath", classes.as_posix())
             .config("spark.hadoop.fs.file.impl", "lakeforge.hadoop.BareLocalFileSystem")
+            .config(
+                "spark.hadoop.fs.AbstractFileSystem.file.impl",
+                "lakeforge.hadoop.BareLocalFs",
+            )
         )
-    return configure_spark_with_delta_pip(builder).getOrCreate()
+    return configure_spark_with_delta_pip(
+        builder,
+        extra_packages=["org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0"],
+    ).getOrCreate()
 
 
 def _prepare_process(warehouse_dir: Path) -> None:
@@ -129,7 +136,7 @@ def _compile_winutils(executable: Path) -> None:
 
 def _compile_bare_filesystem() -> Path:
     classes = _windows_hadoop_home().parent / "bare-fs"
-    marker = classes / "lakeforge" / "hadoop" / "BareLocalFileSystem.class"
+    marker = classes / "lakeforge" / "hadoop" / "BareLocalFs.class"
     if marker.is_file():
         return classes
     source = Path(__file__).parent / "hadoop"
@@ -149,6 +156,7 @@ def _compile_bare_filesystem() -> Path:
             str(classes),
             str(source / "BareRawLocalFileSystem.java"),
             str(source / "BareLocalFileSystem.java"),
+            str(source / "BareLocalFs.java"),
         ],
         check=False,
         capture_output=True,

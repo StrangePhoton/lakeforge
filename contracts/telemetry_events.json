@@ -1,0 +1,37 @@
+{
+  "dataset": "telemetry_events",
+  "compatibility": "backward",
+  "versions": [
+    {
+      "version": 1,
+      "columns": [
+        {"name": "event_id", "type": "string", "required": true},
+        {"name": "vehicle_id", "type": "string", "required": false},
+        {"name": "event_time", "type": "timestamp", "required": false},
+        {"name": "received_at", "type": "timestamp", "required": true},
+        {"name": "latitude", "type": "double", "required": false},
+        {"name": "longitude", "type": "double", "required": false},
+        {"name": "speed_kph", "type": "double", "required": false},
+        {"name": "engine_state", "type": "string", "required": false},
+        {"name": "fuel_rate_lph", "type": "double", "required": false},
+        {"name": "engine_hours", "type": "double", "required": false}
+      ]
+    },
+    {
+      "version": 2,
+      "columns": [
+        {"name": "event_id", "type": "string", "required": true},
+        {"name": "vehicle_id", "type": "string", "required": false},
+        {"name": "event_time", "type": "timestamp", "required": false},
+        {"name": "received_at", "type": "timestamp", "required": true},
+        {"name": "latitude", "type": "double", "required": false},
+        {"name": "longitude", "type": "double", "required": false},
+        {"name": "speed_kph", "type": "double", "required": false},
+        {"name": "engine_state", "type": "string", "required": false},
+        {"name": "fuel_rate_lph", "type": "double", "required": false},
+        {"name": "engine_hours", "type": "double", "required": false},
+        {"name": "payload_kg", "type": "double", "required": false}
+      ]
+    }
+  ]
+}

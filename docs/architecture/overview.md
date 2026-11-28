@@ -4,7 +4,7 @@ LakeForge is a reference architecture for an industrial fleet data platform. All
 
 ## Implemented
 
-Milestone 4 runs on a workstation. PostgreSQL is the simulated operational source. A Python process generates a deterministic snapshot, extracts it to a JSONL landing run, loads that run into local Bronze Delta tables, conforms it to Silver, aggregates Gold activity tables, and writes telemetry quality violations beside the rows that pass.
+Milestone 7 runs on a workstation. PostgreSQL is the simulated operational source. A Python process generates a deterministic snapshot, extracts it to a JSONL landing run, checks that run against published contracts, loads it into local Bronze Delta tables, conforms it to Silver, aggregates Gold activity tables, and writes telemetry quality violations beside the rows that pass. The same telemetry file can also be published to local Kafka and loaded by Structured Streaming into a separate Delta table. A quality-gated command publishes fleet, operations, and maintenance products from the Silver snapshot and the passed telemetry.
 
 ```
 synthetic generator
@@ -27,7 +27,15 @@ data/landing/run_id=<run_id>/
     manifest.json
         |
         v
-lakeforge bronze  (local Spark)
+lakeforge contract
+        |
+        v
+data/contracts/run_id=<run_id>/
+    manifest.json
+    schema_violation.jsonl
+        |
+        v
+lakeforge bronze  (same check, then local Spark)
         |
         v
 data/bronze/run_id=<run_id>/
@@ -45,6 +53,23 @@ data/silver/run_id=<run_id>/
         |
         +-- lakeforge quality --> data/quality/run_id=<run_id>/
                                  telemetry_violation, telemetry_passed
+                                      |
+                                      v
+                            lakeforge product
+                                      |
+                                      v
+                            data/products/run_id=<run_id>/
+                                fleet_vehicle_activity
+                                operations_site_activity
+                                maintenance_alarm_events
+
+telemetry_events.jsonl
+        |
+        v
+lakeforge publish --> Kafka lakeforge.telemetry.events
+        |
+        v
+lakeforge stream --> data/stream/telemetry_events
 ```
 
 Telemetry is an externally produced machine event feed. It does not have a foreign key to vehicles. Sites, vehicles, alarms, and work orders stay relationally constrained. `anomalies.json` is the simulation answer key and is not an operational table.
@@ -59,12 +84,12 @@ The Python package is `lakeforge`:
 | `lakeforge.ingest` | Landing writer and batch orchestration |
 | `lakeforge.config` | Environment-based settings |
 | `lakeforge.logging` | One JSON object per log line |
-| `lakeforge.lakehouse` | Local Spark session, Bronze, Silver, Gold, and quality |
-| `lakeforge.cli` | `generate`, `ingest`, `pipeline`, `bronze`, `silver`, `gold`, and `quality` |
+| `lakeforge.lakehouse` | Contracts, local Spark session, Bronze, Silver, Gold, quality, the telemetry stream, and domain products |
+| `lakeforge.cli` | `generate`, `ingest`, `pipeline`, `contract`, `bronze`, `silver`, `gold`, `quality`, `publish`, `stream`, and `product` |
 
 There is one schema definition: `src/lakeforge/source/schema.sql`. Compose mounts it, and generation executes it after dropping schema `source`.
 
-Details are in [milestone-4.md](milestone-4.md). Silver and Gold are recorded in [milestone-3.md](milestone-3.md), Bronze in [milestone-2.md](milestone-2.md), the operational source in [milestone-1.md](milestone-1.md), and the first slice in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr).
+Details are in [milestone-7.md](milestone-7.md). The telemetry stream is recorded in [milestone-6.md](milestone-6.md), contracts in [milestone-5.md](milestone-5.md), quality in [milestone-4.md](milestone-4.md), Silver and Gold in [milestone-3.md](milestone-3.md), Bronze in [milestone-2.md](milestone-2.md), the operational source in [milestone-1.md](milestone-1.md), and the first slice in [milestone-0.md](milestone-0.md). Decisions are in [../adr](../adr). The published contracts are in [../../contracts](../../contracts). The product descriptors are in [../../products](../../products).
 
 ## Planned
 
@@ -80,22 +105,20 @@ Batch + streaming ingestion
 Bronze -> Silver -> Gold
    |
    v
-Governed domain data products
+Catalog, retention, and product APIs
    |
    v
-Analytics / APIs / AI consumers
+Analytics / AI consumers
 ```
 
 Planned technologies, each only when its milestone starts:
 
-- Kafka locally, Azure Event Hubs in Azure
+- Azure Event Hubs
 - ADLS Gen2, Azure Databricks, Azure Key Vault, Microsoft Entra
 - Terraform and GitHub Actions beyond the current lint-and-test workflow
 - Microsoft Fabric and OneLake as a second implementation target
-- Contracts and schema evolution
-- Domain data products for fleet, maintenance, and operations
 - OpenTelemetry, Prometheus, and Grafana
 - A Kubernetes decision, which may be a decision not to use Kubernetes
 - A loose ForgeFlow integration through a governed query interface
 
-The JSONL landing zone remains the operational extract. Bronze, Silver, and Gold are local Delta snapshots of one run. Quality violations are written beside the Silver rows that pass. Contracts, streaming, and domain data products are still planned.
+The JSONL landing zone remains the operational extract. Published contracts check that extract before Bronze. Bronze, Silver, and Gold are local Delta snapshots of one run. Quality violations are written beside the Silver rows that pass. Telemetry can also flow through local Kafka into `data/stream`. `lakeforge product` publishes fleet vehicle activity, operations site activity, and maintenance alarm events when the quality reference checks are clean. Gold stays unfiltered.

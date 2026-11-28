@@ -34,6 +34,20 @@ def resolve_delta_run(
     return resolved
 
 
+def resolve_products_dir(products_dir: Path) -> Path:
+    """Return the products directory when the path does not climb out of it."""
+    if ".." in products_dir.parts:
+        raise ValueError("products directory must stay inside the products directory")
+    return products_dir.resolve()
+
+
+def resolve_stream_dir(stream_dir: Path) -> Path:
+    """Return the stream directory when the path does not climb out of it."""
+    if ".." in stream_dir.parts:
+        raise ValueError("stream directory must stay inside the stream directory")
+    return stream_dir.resolve()
+
+
 def resolve_landing_run(landing_dir: Path, landing_run: Path) -> Path:
     """Return the landing run directory when it is a direct child of ``landing_dir``."""
     if ".." in landing_run.parts:

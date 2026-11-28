@@ -11,9 +11,12 @@ from pydantic import ValidationError
 from lakeforge.config import ProfileName, Settings, load_settings
 from lakeforge.ingest.pipeline import run_generate, run_ingest, run_pipeline
 from lakeforge.lakehouse.bronze import run_bronze
+from lakeforge.lakehouse.contract import run_contract
 from lakeforge.lakehouse.gold import run_gold
+from lakeforge.lakehouse.product import run_product
 from lakeforge.lakehouse.quality import run_quality
 from lakeforge.lakehouse.silver import run_silver
+from lakeforge.lakehouse.stream import run_publish, run_stream
 from lakeforge.logging import configure_logging
 
 
@@ -54,6 +57,24 @@ def main(argv: list[str] | None = None) -> int:
             if silver_run is None:
                 raise ValueError("silver run is required")
             run_quality(settings, silver_run)
+        elif args.command == "contract":
+            landing_run = _optional_path(args, "landing_run")
+            if landing_run is None:
+                raise ValueError("landing run is required")
+            run_contract(settings, landing_run)
+        elif args.command == "publish":
+            landing_run = _optional_path(args, "landing_run")
+            if landing_run is None:
+                raise ValueError("landing run is required")
+            run_publish(settings, landing_run)
+        elif args.command == "stream":
+            run_stream(settings)
+        elif args.command == "product":
+            silver_run = _optional_path(args, "silver_run")
+            quality_run = _optional_path(args, "quality_run")
+            if silver_run is None or quality_run is None:
+                raise ValueError("silver run and quality run are required")
+            run_product(settings, silver_run, quality_run)
         else:
             parser.error(f"unknown command {args.command}")
     except (OperationalError, ValueError, OSError) as exc:
@@ -95,6 +116,34 @@ def _build_parser() -> argparse.ArgumentParser:
     quality.add_argument("--silver-run", type=Path, required=True)
     quality.add_argument("--silver-dir", type=Path, default=None)
     quality.add_argument("--quality-dir", type=Path, default=None)
+
+    contract = commands.add_parser(
+        "contract",
+        help="Check one landing run against published contracts",
+    )
+    contract.add_argument("--landing-run", type=Path, required=True)
+    _add_landing_argument(contract)
+    contract.add_argument("--contracts-dir", type=Path, default=None)
+
+    publish = commands.add_parser("publish", help="Publish one landing telemetry file to Kafka")
+    publish.add_argument("--landing-run", type=Path, required=True)
+    _add_landing_argument(publish)
+    publish.add_argument("--contracts-dir", type=Path, default=None)
+    publish.add_argument("--kafka-bootstrap", default=None)
+
+    stream = commands.add_parser("stream", help="Load the telemetry topic into a Delta table")
+    stream.add_argument("--stream-dir", type=Path, default=None)
+    stream.add_argument("--kafka-bootstrap", default=None)
+
+    product = commands.add_parser(
+        "product",
+        help="Publish domain products for one quality-gated run",
+    )
+    product.add_argument("--silver-run", type=Path, required=True)
+    product.add_argument("--quality-run", type=Path, required=True)
+    product.add_argument("--silver-dir", type=Path, default=None)
+    product.add_argument("--quality-dir", type=Path, default=None)
+    product.add_argument("--products-dir", type=Path, default=None)
     return parser
 
 
@@ -126,6 +175,10 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
     silver_dir = _optional_path(args, "silver_dir")
     gold_dir = _optional_path(args, "gold_dir")
     quality_dir = _optional_path(args, "quality_dir")
+    contracts_dir = _optional_path(args, "contracts_dir")
+    stream_dir = _optional_path(args, "stream_dir")
+    products_dir = _optional_path(args, "products_dir")
+    kafka_bootstrap = _optional_str(args, "kafka_bootstrap")
     profile = _optional_profile(args)
     anomalies = current.anomalies and not bool(getattr(args, "no_anomalies", False))
     return Settings(
@@ -139,6 +192,10 @@ def _settings_from_args(args: argparse.Namespace) -> Settings:
         silver_dir=current.silver_dir if silver_dir is None else silver_dir,
         gold_dir=current.gold_dir if gold_dir is None else gold_dir,
         quality_dir=current.quality_dir if quality_dir is None else quality_dir,
+        contracts_dir=current.contracts_dir if contracts_dir is None else contracts_dir,
+        stream_dir=current.stream_dir if stream_dir is None else stream_dir,
+        products_dir=current.products_dir if products_dir is None else products_dir,
+        kafka_bootstrap=(current.kafka_bootstrap if kafka_bootstrap is None else kafka_bootstrap),
         log_level=current.log_level,
         seed=current.seed if seed is None else seed,
         profile=current.profile if profile is None else profile,
@@ -171,6 +228,15 @@ def _optional_profile(args: argparse.Namespace) -> ProfileName | None:
     if value == "large":
         return "large"
     raise ValueError("profile must be tiny, dev, or large")
+
+
+def _optional_str(args: argparse.Namespace, name: str) -> str | None:
+    value = getattr(args, name, None)
+    if value is None:
+        return None
+    if isinstance(value, str):
+        return value
+    raise ValueError(f"{name} must be a string")
 
 
 def _optional_path(args: argparse.Namespace, name: str) -> Path | None:

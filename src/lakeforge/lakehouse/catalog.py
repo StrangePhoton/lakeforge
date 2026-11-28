@@ -52,6 +52,7 @@ TABLES: dict[str, tuple[ColumnSpec, ...]] = {
         ColumnSpec("engine_state", "string", True),
         ColumnSpec("fuel_rate_lph", "double", True),
         ColumnSpec("engine_hours", "double", True),
+        ColumnSpec("payload_kg", "double", True),
     ),
     "alarms": (
         ColumnSpec("alarm_id", "string", False),

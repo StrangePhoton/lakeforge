@@ -1,0 +1,20 @@
+{
+  "dataset": "work_orders",
+  "compatibility": "backward",
+  "versions": [
+    {
+      "version": 1,
+      "columns": [
+        {"name": "work_order_id", "type": "string", "required": true},
+        {"name": "vehicle_id", "type": "string", "required": true},
+        {"name": "site_id", "type": "string", "required": true},
+        {"name": "alarm_id", "type": "string", "required": false},
+        {"name": "opened_at", "type": "timestamp", "required": true},
+        {"name": "closed_at", "type": "timestamp", "required": false},
+        {"name": "work_type", "type": "string", "required": true},
+        {"name": "cause_code", "type": "string", "required": true},
+        {"name": "status", "type": "string", "required": true}
+      ]
+    }
+  ]
+}

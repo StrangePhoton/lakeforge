@@ -1,0 +1,17 @@
+{
+  "dataset": "alarms",
+  "compatibility": "backward",
+  "versions": [
+    {
+      "version": 1,
+      "columns": [
+        {"name": "alarm_id", "type": "string", "required": true},
+        {"name": "vehicle_id", "type": "string", "required": true},
+        {"name": "event_id", "type": "string", "required": false},
+        {"name": "alarm_code", "type": "string", "required": true},
+        {"name": "severity", "type": "string", "required": true},
+        {"name": "raised_at", "type": "timestamp", "required": true}
+      ]
+    }
+  ]
+}

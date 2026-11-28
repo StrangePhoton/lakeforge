@@ -1,0 +1,16 @@
+{
+  "dataset": "sites",
+  "compatibility": "backward",
+  "versions": [
+    {
+      "version": 1,
+      "columns": [
+        {"name": "site_id", "type": "string", "required": true},
+        {"name": "site_name", "type": "string", "required": true},
+        {"name": "latitude", "type": "double", "required": true},
+        {"name": "longitude", "type": "double", "required": true},
+        {"name": "timezone_name", "type": "string", "required": true}
+      ]
+    }
+  ]
+}

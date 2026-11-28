@@ -1,0 +1,37 @@
+{
+  "name": "fleet.vehicle_activity",
+  "domain": "fleet",
+  "version": 1,
+  "description": "Vehicle activity counted from telemetry rows that passed the fleet quality rules.",
+  "owner": "fleet",
+  "freshness": "snapshot",
+  "classification": "synthetic",
+  "compatibility": "backward",
+  "quality_requirements": [
+    "vehicle_id_present",
+    "vehicle_known",
+    "event_time_present",
+    "position_present",
+    "position_range",
+    "speed_present",
+    "speed_range",
+    "engine_state_known",
+    "event_time_late",
+    "duplicate_reading",
+    "received_at_out_of_order"
+  ],
+  "columns": [
+    "vehicle_id",
+    "site_id",
+    "asset_type",
+    "model_code",
+    "status",
+    "event_count",
+    "timed_event_count",
+    "first_event_time",
+    "last_event_time",
+    "alarm_count",
+    "work_order_count",
+    "_landing_run_id"
+  ]
+}

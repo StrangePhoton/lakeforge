@@ -180,6 +180,7 @@ def _write_silver(spark: SparkSession, root: Path, run_id: str) -> Path:
                 "idle",
                 3.5,
                 249.25,
+                None,
                 run_id,
             )
         ],

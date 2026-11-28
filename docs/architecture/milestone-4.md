@@ -2,7 +2,9 @@
 
 Status: implemented.
 
-This milestone checks one Silver snapshot and writes the telemetry rows that fail beside the rows that pass. Contracts, schema evolution, and streaming are not part of it.
+Schema checks on the landing run are [Milestone 5](milestone-5.md). This page records the Silver quality rules.
+
+This milestone checks one Silver snapshot and writes the telemetry rows that fail beside the rows that pass. Streaming is not part of it.
 
 ## Flow
 
@@ -37,4 +39,4 @@ Reference checks on alarms and work orders pass for this generator, so no `refer
 
 ## What is deliberately absent
 
-No general rules engine, schema contract, schema evolution, streaming quarantine, or rebuild of Gold from the passed rows.
+No general rules engine, streaming quarantine, or rebuild of Gold from the passed rows. Schema contracts are [Milestone 5](milestone-5.md).

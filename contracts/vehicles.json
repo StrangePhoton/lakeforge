@@ -1,0 +1,17 @@
+{
+  "dataset": "vehicles",
+  "compatibility": "backward",
+  "versions": [
+    {
+      "version": 1,
+      "columns": [
+        {"name": "vehicle_id", "type": "string", "required": true},
+        {"name": "asset_type", "type": "string", "required": true},
+        {"name": "model_code", "type": "string", "required": true},
+        {"name": "site_id", "type": "string", "required": true},
+        {"name": "status", "type": "string", "required": true},
+        {"name": "commissioned_on", "type": "date", "required": true}
+      ]
+    }
+  ]
+}
